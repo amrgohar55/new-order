@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تطبيق طلبات العملاء</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
+</head>
+<body dir="rtl" class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [formData, setFormData] = useState({
+        clientName: '',
+        service: '',
+        link: '',
+        paymentMethod: ''
+      });
+      const [orders, setOrders] = useState([]);
+      const [message, setMessage] = useState('');
+
+      // تحميل الطلبات من localStorage
+      useEffect(() => {
+        try {
+          const savedOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+          setOrders(savedOrders);
+        } catch (e) {
+          console.error('Error loading orders:', e);
+        }
+      }, []);
+
+      // تهيئة EmailJS
+      useEffect(() => {
+        emailjs.init('VHNzJzlAdFB6r7Uhn'); // User ID
+      }, []);
+
+      // تحديث الحقول
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+      };
+
+      // إرسال النموذج
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.clientName || !formData.service || !formData.link || !formData.paymentMethod) {
+          setMessage('يرجى ملء جميع الحقول!');
+          return;
+        }
+
+        const newOrder = { ...formData, id: Date.now() };
+        const updatedOrders = [...orders, newOrder];
+        setOrders(updatedOrders);
+
+        // حفظ الطلب في localStorage
+        try {
+          localStorage.setItem('orders', JSON.stringify(updatedOrders));
+        } catch (e) {
+          console.error('Error saving order:', e);
+        }
+
+        // إرسال الإيميل باستخدام EmailJS
+        emailjs.send('service_mboj1rf', 'template_2uiqo2b', {
+          clientName: formData.clientName,
+          service: formData.service,
+          link: formData.link,
+          paymentMethod: formData.paymentMethod
+        })
+        .then((response) => {
+          console.log('Email sent successfully:', response);
+          setMessage('تم إرسال الطلب بنجاح! يرجى الدفع عبر فودافون كاش على الأرقام الموضحة.');
+          setFormData({ clientName: '', service: '', link: '', paymentMethod: '' });
+        })
+        .catch((error) => {
+          console.error('Error sending email:', error);
+          setMessage('حدث خطأ أثناء إرسال الطلب: ' + error.text);
+        });
+      };
+
+      return (
+        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+          <h1 className="text-2xl font-bold text-center mb-4">طلب خدمة</h1>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium">اسم العميل</label>
+              <input
+                type="text"
+                name="clientName"
+                value={formData.clientName}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+                placeholder="اكتب اسمك هنا"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">الخدمة المطلوبة</label>
+              <input
+                type="text"
+                name="service"
+                value={formData.service}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+                placeholder="اكتب الخدمة هنا"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">الرابط</label>
+              <input
+                type="url"
+                name="link"
+                value={formData.link}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+                placeholder="https://example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">طريقة الدفع</label>
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">اختر طريقة الدفع</option>
+                <option value="cash">كاش</option>
+                <option value="bank">تحويل بنكي</option>
+                <option value="vodafone">فودافون كاش</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">للدفع</label>
+              <p className="text-sm text-gray-600">
+                للدفع فودافون كاش<br />
+                01080146722<br />
+                01080146723<br />
+                01212231582
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+            >
+              إرسال الطلب
+            </button>
+          </form>
+          {message && (
+            <p className={`mt-4 text-center ${message.includes('نجاح') ? 'text-green-600' : 'text-red-600'}`}>
+              {message}
+            </p>
+          )}
+          <h2 className="text-xl font-bold mt-6">الطلبات المرسلة</h2>
+          <ul className="mt-4 space-y-2">
+            {orders.map((order) => (
+              <li key={order.id} className="p-4 bg-gray-50 rounded">
+                <p><strong>اسم العميل:</strong> {order.clientName}</p>
+                <p><strong>الخدمة:</strong> {order.service}</p>
+                <p><strong>الرابط:</strong> <a href={order.link} className="text-blue-600">{order.link}</a></p>
+                <p><strong>طريقة الدفع:</strong> {order.paymentMethod}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
